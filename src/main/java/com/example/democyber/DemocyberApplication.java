@@ -13,6 +13,7 @@ public class DemocyberApplication {
         SpringApplication.run(DemocyberApplication.class, args);
     }
 
+
     @GetMapping("/")
     public String hello() {
         return "Hello from Democyber 123 2026!";
