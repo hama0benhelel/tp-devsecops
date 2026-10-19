@@ -60,7 +60,7 @@ jobs:
         run: docker image ls "$DOCKER_IMAGE_NAME"
 
       - name: Build Docker image
-        run: docker build -t democyber:latest .
+        run: docker build --pull --no-cache -t democyber:latest .
 
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
