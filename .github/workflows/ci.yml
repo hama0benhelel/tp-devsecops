@@ -59,6 +59,17 @@ jobs:
       - name: Show Docker image details
         run: docker image ls "$DOCKER_IMAGE_NAME"
 
+      - name: Build Docker image
+        run: docker build -t democyber:latest .
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: democyber:latest
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
       - name: Test Docker image locally
         run: |
           docker run -d --name democyber-test -p 8080:8080 "$DOCKER_IMAGE_NAME"
