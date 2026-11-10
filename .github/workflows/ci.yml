@@ -45,6 +45,7 @@ jobs:
 
       - name: Build and test with Maven
         run: mvn --batch-mode clean verify
+
       - name: SonarCloud Scan
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -58,25 +59,11 @@ jobs:
             -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
             -Dsonar.qualitygate.wait=true
 
-      - name: Login to Docker Hub
-        if: github.event_name == 'push'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Build Docker image
-        run: docker build -t "$DOCKER_IMAGE_NAME" .
+        run: docker build --pull -t "$DOCKER_IMAGE_NAME" .
 
       - name: Show Docker image details
         run: docker image ls "$DOCKER_IMAGE_NAME"
-
-      - name: Build Docker image
-        run: docker build --pull --no-cache -t democyber:latest .
-     
-      - name: Push Docker image
-        if: github.event_name == 'push'
-        run: docker push $DOCKER_IMAGE_NAME
 
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
@@ -88,8 +75,18 @@ jobs:
 
       - name: Test Docker image locally
         run: |
-          docker run -d --name democyber-test -p 8080:8080 "$DOCKER_IMAGE_NAME"
-          sleep 10
-          curl -f http://localhost:8080 || echo "App not responding"
-          docker stop democyber-test
-          docker rm democyber-test
+          trap 'docker rm -f democyber-test >/dev/null 2>&1 || true' EXIT
+          docker run -d --name democyber-test -p 127.0.0.1:8080:8080 "$DOCKER_IMAGE_NAME"
+          curl --fail --show-error --retry 15 --retry-connrefused \
+            --retry-delay 2 --max-time 5 http://127.0.0.1:8080/
+
+      - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: docker push "$DOCKER_IMAGE_NAME"
