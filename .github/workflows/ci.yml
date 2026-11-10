@@ -76,9 +76,29 @@ jobs:
       - name: Test Docker image locally
         run: |
           trap 'docker rm -f democyber-test >/dev/null 2>&1 || true' EXIT
-          docker run -d --name democyber-test -p 127.0.0.1:8080:8080 "$DOCKER_IMAGE_NAME"
-          curl --fail --show-error --retry 15 --retry-connrefused \
-            --retry-delay 2 --max-time 5 http://127.0.0.1:8080/
+
+          docker run -d --name democyber-test \
+            -p 127.0.0.1:8080:8080 "$DOCKER_IMAGE_NAME"
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --max-time 3 http://127.0.0.1:8080/; then
+              echo
+              echo "Application accessible : test réussi"
+              exit 0
+            fi
+
+            if [ "$(docker inspect --format '{{.State.Running}}' democyber-test)" != "true" ]; then
+              echo "Le conteneur s'est arrêté pendant le démarrage."
+              docker logs --tail 80 democyber-test
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "L'application n'a pas répondu sur le port 8080."
+          docker logs --tail 80 democyber-test
+          exit 1
 
       - name: Login to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
