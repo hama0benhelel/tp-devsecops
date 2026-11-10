@@ -45,6 +45,18 @@ jobs:
 
       - name: Build and test with Maven
         run: mvn --batch-mode clean verify
+      - name: SonarCloud Scan
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+        run: |
+          mvn --batch-mode org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+            -Dsonar.qualitygate.wait=true
 
       - name: Login to Docker Hub
         if: github.event_name == 'push'
